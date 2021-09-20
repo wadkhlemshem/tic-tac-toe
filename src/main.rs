@@ -1,5 +1,5 @@
-use std::{convert::TryInto, fmt, fs::File};
-use iced::{Align, Button, Column, Element, HorizontalAlignment, Radio, Row, Sandbox, Settings, Text, VerticalAlignment, button, executor, futures::io::{Empty, Window}, image::{Handle, viewer::Renderer}};
+use std::{convert::TryInto, fmt};
+use iced::{Align, Button, Column, Element, HorizontalAlignment, Radio, Row, Sandbox, Settings, Text, VerticalAlignment, button};
 use rand::prelude::*;
 
 pub fn main() -> iced::Result {
