@@ -53,10 +53,35 @@ impl TCell {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum FirstPlayer {
     Human,
     Computer,
+}
+
+impl fmt::Display for FirstPlayer {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FirstPlayer::Computer => write!(f, "Computer"),
+            FirstPlayer::Human => write!(f, "Human"),
+        }
+    }
+}
+
+impl FirstPlayer {
+    fn view(&mut self) -> Element<Message> {
+        let players = [FirstPlayer::Computer, FirstPlayer::Human];
+        players.iter().cloned().fold(
+            Column::new().padding(10).spacing(20),
+            |choices, p| {
+                choices.push(Radio::new(
+                    p,
+                    p.to_string(),
+                    Some(*self),
+                    Message::ToggleFirstPlayer,
+                ))
+            }).into()
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -287,6 +312,7 @@ impl Sandbox for Tictactoe {
             self.hardness = hardness;
         } else if let Message::ToggleFirstPlayer(player) = message {
             self.first_player = player;
+            self.next();
         }
     }
 
@@ -295,6 +321,11 @@ impl Sandbox for Tictactoe {
         Column::new()
             .push(
                 self.hardness.view()
+            )
+            .push(
+                Column::new().padding(20)
+                    .push(Text::new("First Player:"))
+                    .push(self.first_player.view())
             )
             .push(
                 self.cells.iter_mut().enumerate().fold(
