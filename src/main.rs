@@ -262,11 +262,11 @@ impl Sandbox for Tictactoe {
     fn view(&mut self) -> Element<Self::Message> {
         self.cells.iter_mut().enumerate().fold(
             Column::new().max_width(300).max_height(300).align_items(Align::Center),
-            |col, (usize, row)| {
+            |col, (_, row)| {
                 col.push(
                     row.iter_mut().enumerate().fold(
                         Row::new().align_items(Align::Center),
-                        |row, (usize, cell) | {
+                        |row, (_, cell) | {
                             row.push(cell.view().map(move |message| Message::CellPressed(message)))
                         }
                     )
