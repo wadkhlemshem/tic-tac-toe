@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{convert::TryInto, fmt};
 use iced::{Align, Button, Column, Element, HorizontalAlignment, Radio, Row, Sandbox, Settings, Text, VerticalAlignment, button, executor, futures::io::{Empty, Window}, image::viewer::Renderer};
 use rand::prelude::*;
 
@@ -78,6 +78,7 @@ struct Tictactoe {
     hardness: Hardness,
     finished: bool,
     winner: Winner,
+    moves: u8,
 }
 
 #[derive(Debug)]
@@ -86,56 +87,40 @@ enum Message {
 }
 
 impl Tictactoe {
-    fn check(&mut self) {
-        let rows:[[(usize,usize); 3]; 3] = [[(0,0),(0,1),(0,2)], [(1,0),(1,1),(1,2)], [(2,0),(2,1),(2,2)]];
-        let cols:[[(usize,usize); 3]; 3] = [[(0,0),(1,0),(2,0)], [(0,1),(1,1),(2,1)], [(0,2),(1,2),(2,2)]];
-        let diags: [[(usize,usize); 3]; 2] = [[(0,0),(1,1),(2,2)], [(0,2),(1,1),(2,0)]];
+    fn neighbours((i,j): (usize, usize)) -> Vec<[(usize, usize); 3]>{
+        let mut neighbours = vec![];
+        let row: [(usize, usize); 3] = (0..3).map(|j| {(i,j)}).collect::<Vec<_>>().try_into().unwrap();
+        neighbours.push(row);
+        let col: [(usize, usize); 3] = (0..3).map(|i| {(i,j)}).collect::<Vec<_>>().try_into().unwrap();
+        neighbours.push(col);
 
-        let x_won = rows.iter().any(|row| {
-            row.iter().all(|(i,j)| {
-                self.cells[*i][*j].value == CellValue::X
-            }) ||
-            cols.iter().any(|col| {
-                col.iter().all(|(i,j)| {
-                    self.cells[*i][*j].value == CellValue::X
-                })
-            }) ||
-            diags.iter().any(|diag| {
-                diag.iter().all(|(i,j)| {
-                    self.cells[*i][*j].value == CellValue::X
-                })
+        if i == j {
+            let diag: [(usize, usize); 3] = (0..3).map(|i| {(i,i)}).collect::<Vec<_>>().try_into().unwrap();
+            neighbours.push(diag);
+        }
+        if  i + j == 2 {
+            let diag: [(usize, usize); 3] = (0..3).map(|i| {(i, 2-i)}).collect::<Vec<_>>().try_into().unwrap();
+            neighbours.push(diag);
+        }
+        neighbours
+    }
+
+    fn check(&mut self, (i,j): (usize,usize), cell_value: CellValue) {
+        let neighbours: Vec<[(usize, usize); 3]> = Tictactoe::neighbours((i,j));
+        let won = neighbours.iter().any(|line| {
+            line.iter().all(|(i,j)| {
+                self.cells[*i][*j].value == cell_value
             })
         });
 
-        let o_won = rows.iter().any(|row| {
-            row.iter().all(|(i,j)| {
-                self.cells[*i][*j].value == CellValue::O
-            }) ||
-            cols.iter().any(|col| {
-                col.iter().all(|(i,j)| {
-                    self.cells[*i][*j].value == CellValue::O
-                })
-            }) ||
-            diags.iter().any(|diag| {
-                diag.iter().all(|(i,j)| {
-                    self.cells[*i][*j].value == CellValue::O
-                })
-            })
-        });
-
-        let finished = self.cells.iter().all(|row| {
-            row.iter().all(|c| {
-                c.value == CellValue::X || c.value == CellValue::O
-            })
-        });
-
-        if x_won {
+        if won {
             self.finished = true;
-            self.winner = Winner::X;
-        } else if o_won {
-            self.finished = true;
-            self.winner = Winner::O;
-        } else if finished {
+            self.winner = match cell_value {
+                CellValue::X => Winner::X,
+                CellValue::O => Winner::O,
+                _ => Winner::None,
+            };
+        } else if self.moves >= 9 {
             self.finished = true;
             self.winner = Winner::None;
         }
@@ -158,6 +143,8 @@ impl Tictactoe {
             FirstPlayer::Computer => CellValue::X,
         };
         self.cells[i][j].update(value);
+        self.moves += 1;
+        self.check((i,j), value);
     }
 }
 
@@ -174,7 +161,7 @@ impl Sandbox for Tictactoe {
                 cells[i][j] = TCell::new(p);
             }
         }
-        Tictactoe { cells, first_player: FirstPlayer::Human, hardness: Hardness::Hard, finished: false, winner: Winner::None }
+        Tictactoe { cells, first_player: FirstPlayer::Human, hardness: Hardness::Hard, finished: false, winner: Winner::None, moves: 0 }
     }
 
     fn title(&self) -> String {
@@ -197,10 +184,10 @@ impl Sandbox for Tictactoe {
                 FirstPlayer::Computer => CellValue::O,
             };
             if self.cells[i][j].update(value) {
-                self.check();
+                self.moves += 1;
+                self.check((i,j), value);
                 if !self.finished {
                     self.next();
-                    self.check();
                 }
             }
         }
