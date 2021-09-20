@@ -1,4 +1,4 @@
-use std::{convert::TryInto, fmt, io::SeekFrom};
+use std::{convert::TryInto, fmt};
 use iced::{Align, Button, Column, Element, HorizontalAlignment, Radio, Row, Sandbox, Settings, Text, VerticalAlignment, button, executor, futures::io::{Empty, Window}, image::viewer::Renderer};
 use rand::prelude::*;
 
