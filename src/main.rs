@@ -1,5 +1,5 @@
 use std::{convert::TryInto, fmt, fs::File};
-use iced::{Align, Button, Column, Element, HorizontalAlignment, Radio, Row, Sandbox, Settings, Text, VerticalAlignment, button, executor, futures::io::{Empty, Window}, image::viewer::Renderer};
+use iced::{Align, Button, Column, Element, HorizontalAlignment, Radio, Row, Sandbox, Settings, Text, VerticalAlignment, button, executor, futures::io::{Empty, Window}, image::{Handle, viewer::Renderer}};
 use rand::prelude::*;
 
 pub fn main() -> iced::Result {
@@ -63,6 +63,22 @@ enum FirstPlayer {
 enum Hardness {
     Random,
     Hard,
+}
+
+impl Hardness {
+    fn view(&mut self) -> Element<Message> {
+        let hardness = [Hardness::Hard, Hardness::Random];
+        hardness.iter().cloned().fold(
+            Column::new(),
+            |choices, h| {
+                choices.push(Radio::new(
+                    h,
+                    h.to_string(),
+                    Some(*self),
+                    Message::ToggleHardness,
+                ))
+            }).into()
+    }
 }
 
 impl fmt::Display for Hardness {
@@ -275,18 +291,10 @@ impl Sandbox for Tictactoe {
     }
 
     fn view(&mut self) -> Element<Self::Message> {
-        let hardness = [Hardness::Hard, Hardness::Random];
+
         Column::new()
-            .push(hardness.iter().cloned().fold(
-                Column::new(),
-                |choices, h| {
-                    choices.push(Radio::new(
-                        h,
-                        h.to_string(),
-                        None,
-                        Message::ToggleHardness,
-                    ))
-                })
+            .push(
+                self.hardness.view()
             )
             .push(
                 self.cells.iter_mut().enumerate().fold(
