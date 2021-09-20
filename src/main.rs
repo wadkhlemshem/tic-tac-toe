@@ -94,7 +94,7 @@ impl Hardness {
     fn view(&mut self) -> Element<Message> {
         let hardness = [Hardness::Hard, Hardness::Random];
         hardness.iter().cloned().fold(
-            Column::new(),
+            Column::new().padding(10).spacing(10),
             |choices, h| {
                 choices.push(Radio::new(
                     h,
@@ -318,9 +318,11 @@ impl Sandbox for Tictactoe {
 
     fn view(&mut self) -> Element<Self::Message> {
 
-        Column::new()
+        Column::new().padding(20)
             .push(
-                self.hardness.view()
+                Column::new().padding(20)
+                    .push(Text::new("Choose hardness"))
+                    .push(self.hardness.view())
             )
             .push(
                 Column::new().padding(20)
@@ -329,7 +331,7 @@ impl Sandbox for Tictactoe {
             )
             .push(
                 self.cells.iter_mut().enumerate().fold(
-                    Column::new().max_width(300).max_height(300).align_items(Align::Center),
+                    Column::new(),
                     |col, (_, row)| {
                         col.push(
                             row.iter_mut().enumerate().fold(
