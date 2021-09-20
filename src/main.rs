@@ -317,7 +317,6 @@ impl Sandbox for Tictactoe {
     }
 
     fn view(&mut self) -> Element<Self::Message> {
-
         Column::new().padding(20)
             .push(
                 Column::new().padding(20)
