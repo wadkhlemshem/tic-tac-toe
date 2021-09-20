@@ -1,4 +1,4 @@
-use std::{convert::TryInto, fmt};
+use std::{convert::TryInto, fmt, fs::File};
 use iced::{Align, Button, Column, Element, HorizontalAlignment, Radio, Row, Sandbox, Settings, Text, VerticalAlignment, button, executor, futures::io::{Empty, Window}, image::viewer::Renderer};
 use rand::prelude::*;
 
@@ -30,8 +30,6 @@ struct TCell {
     button: button::State,
 }
 
-type CellMessage = (usize, usize);
-
 impl TCell {
     fn new(p: (usize, usize)) -> Self {
         TCell { value: CellValue::Empty, position: p, button: button::State::new() }
@@ -46,24 +44,34 @@ impl TCell {
         }
     }
 
-    fn view(&mut self) -> Element<CellMessage> {
+    fn view(&mut self) -> Element<Message> {
         Button::new(&mut self.button, Text::new(self.value.to_string()).horizontal_alignment(HorizontalAlignment::Center).vertical_alignment(VerticalAlignment::Center))
             .height(iced::Length::Units(100))
             .width(iced::Length::Units(100))
-            .on_press(self.position)
+            .on_press(Message::CellPressed(self.position))
             .into()
     }
 }
 
+#[derive(Debug, Clone)]
 enum FirstPlayer {
     Human,
     Computer,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum Hardness {
     Random,
     Hard,
+}
+
+impl fmt::Display for Hardness {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Hardness::Hard => write!(f, "Hard"),
+            Hardness::Random => write!(f, "Random"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -82,9 +90,11 @@ struct Tictactoe {
     moves: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Message {
     CellPressed((usize, usize)),
+    ToggleHardness(Hardness),
+    ToggleFirstPlayer(FirstPlayer),
 }
 
 impl Tictactoe {
@@ -243,35 +253,55 @@ impl Sandbox for Tictactoe {
     }
 
     fn update(&mut self, message: Message) {
-        let Message::CellPressed((i,j)) = message;
-        if !self.finished {
-            let value = match self.first_player {
-                FirstPlayer::Human => CellValue::X,
-                FirstPlayer::Computer => CellValue::O,
-            };
-            if self.cells[i][j].update(value) {
-                self.moves += 1;
-                self.check((i,j), value);
-                if !self.finished {
-                    self.next();
+        if let Message::CellPressed((i,j)) = message {
+            if !self.finished {
+                let value = match self.first_player {
+                    FirstPlayer::Human => CellValue::X,
+                    FirstPlayer::Computer => CellValue::O,
+                };
+                if self.cells[i][j].update(value) {
+                    self.moves += 1;
+                    self.check((i,j), value);
+                    if !self.finished {
+                        self.next();
+                    }
                 }
             }
+        } else if let Message::ToggleHardness(hardness) = message {
+            self.hardness = hardness;
+        } else if let Message::ToggleFirstPlayer(player) = message {
+            self.first_player = player;
         }
     }
 
     fn view(&mut self) -> Element<Self::Message> {
-        self.cells.iter_mut().enumerate().fold(
-            Column::new().max_width(300).max_height(300).align_items(Align::Center),
-            |col, (_, row)| {
-                col.push(
-                    row.iter_mut().enumerate().fold(
-                        Row::new().align_items(Align::Center),
-                        |row, (_, cell) | {
-                            row.push(cell.view().map(move |message| Message::CellPressed(message)))
-                        }
-                    )
+        let hardness = [Hardness::Hard, Hardness::Random];
+        Column::new()
+            .push(hardness.iter().cloned().fold(
+                Column::new(),
+                |choices, h| {
+                    choices.push(Radio::new(
+                        h,
+                        h.to_string(),
+                        None,
+                        Message::ToggleHardness,
+                    ))
+                })
+            )
+            .push(
+                self.cells.iter_mut().enumerate().fold(
+                    Column::new().max_width(300).max_height(300).align_items(Align::Center),
+                    |col, (_, row)| {
+                        col.push(
+                            row.iter_mut().enumerate().fold(
+                                Row::new().align_items(Align::Center),
+                                |row, (_, cell) | {
+                                    row.push(cell.view())
+                                }
+                            )
+                        )
+                    }
                 )
-            }
-        ).into()
+            ).into()
     }
 }
