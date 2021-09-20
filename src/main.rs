@@ -1,4 +1,4 @@
-use std::{convert::TryInto, fmt};
+use std::{convert::TryInto, fmt, io::SeekFrom};
 use iced::{Align, Button, Column, Element, HorizontalAlignment, Radio, Row, Sandbox, Settings, Text, VerticalAlignment, button, executor, futures::io::{Empty, Window}, image::viewer::Renderer};
 use rand::prelude::*;
 
@@ -60,6 +60,7 @@ enum FirstPlayer {
     Computer,
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
 enum Hardness {
     Random,
     Hard,
@@ -127,24 +128,89 @@ impl Tictactoe {
     }
 
     fn next(&mut self) {
-        let mut empty_cells = Vec::new();
-        for i in 0..3 {
-            for j in 0..3 {
-                if self.cells[i][j].value == CellValue::Empty {
-                    empty_cells.push((i,j));
-                }
-            }
-        }
-        let mut rng = thread_rng();
-        let e = rng.gen_range(0..empty_cells.len());
-        let (i,j) = empty_cells[e];
-        let value = match self.first_player {
+        let self_value = match self.first_player {
             FirstPlayer::Human => CellValue::O,
             FirstPlayer::Computer => CellValue::X,
         };
-        self.cells[i][j].update(value);
-        self.moves += 1;
-        self.check((i,j), value);
+        let opp_value = match self.first_player {
+            FirstPlayer::Computer => CellValue::O,
+            FirstPlayer::Human => CellValue::X,
+        };
+        if self.hardness == Hardness::Hard {
+            let mut next_move: Option<(usize, usize)> = None;
+            let lines:[[(usize, usize); 3]; 8] = [
+                [(0,0),(0,1),(0,2)], [(1,0),(1,1),(1,2)], [(2,0),(2,1),(2,2)],
+                [(0,0),(1,0),(2,0)], [(0,1),(1,1),(2,1)], [(0,2),(1,2),(2,2)],
+                [(0,0),(1,1),(2,2)], [(0,2),(1,1),(2,0)]
+            ];
+            // First, check if the game can be finished in one move
+            for line in lines {
+                let self_count: usize = line.iter().filter(|(i,j)| {
+                    self.cells[*i][*j].value == self_value
+                }).collect::<Vec<_>>().len();
+                if self_count == 2 {
+                    for (i,j) in line {
+                        if self.cells[i][j].value == CellValue::Empty {
+                            next_move = Some((i,j));
+                        }
+                    }
+                    if next_move != None {
+                        break;
+                    }
+                }
+            }
+            if next_move == None {
+                // Next, check if any row, column or diagonal has 2 cells of the opponent's value
+                // and a single Empty cell. This will be a forced move
+                for line in lines {
+                    let opp_count = line.iter().filter(|(i,j)| {
+                        self.cells[*i][*j].value == opp_value
+                    }).collect::<Vec<_>>().len();
+                    if opp_count == 2 {
+                        for (i,j) in line {
+                            if self.cells[i][j].value == CellValue::Empty {
+                                next_move = Some((i,j));
+                            }
+                        }
+                        if next_move != None {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if next_move == None {
+                // Arrange cells by priority otherwise
+                let cells:[(usize, usize); 9] = [(1,1), (0,0), (0,2), (2,0), (2,2), (0,1), (1,0), (1,2), (2,1)];
+                for (i,j) in cells {
+                    if self.cells[i][j].value == CellValue::Empty {
+                        next_move = Some((i,j));
+                        break;
+                    }
+                }
+            }
+
+            if let Some((i,j)) = next_move {
+                self.cells[i][j].update(self_value);
+                self.moves += 1;
+                self.check((i,j), self_value);
+            }
+        } else {
+            let mut empty_cells = Vec::new();
+            for i in 0..3 {
+                for j in 0..3 {
+                    if self.cells[i][j].value == CellValue::Empty {
+                        empty_cells.push((i,j));
+                    }
+                }
+            }
+            let mut rng = thread_rng();
+            let e = rng.gen_range(0..empty_cells.len());
+            let (i,j) = empty_cells[e];
+            self.cells[i][j].update(self_value);
+            self.moves += 1;
+            self.check((i,j), self_value);
+        }
     }
 }
 
